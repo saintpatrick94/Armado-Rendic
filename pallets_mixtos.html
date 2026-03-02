@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Organizador de Pallets</title>
+<style>
+body { font-family: Arial; margin: 20px; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+button { padding: 8px 12px; margin: 5px; }
+input { width: 100%; }
+</style>
+</head>
+<body>
+
+<h2>Organizador de Pallets</h2>
+
+<table id="tabla">
+<thead>
+<tr>
+<th>Material</th>
+<th>Cajas</th>
+<th>Pilas</th>
+<th>Pallets completos</th>
+<th>Pilas sobrantes</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<button onclick="agregarFila()">Agregar material</button>
+<button onclick="calcular()">Calcular</button>
+
+<h3 id="total"></h3>
+<h3>Pallets mixtos</h3>
+<div id="mixtos"></div>
+
+<script>
+const cajasPorPila = 6;
+const pilasPorPallet = 6;
+const maxCodigosPorPallet = 4;
+
+function agregarFila() {
+    let tabla = document.querySelector("#tabla tbody");
+    let fila = tabla.insertRow();
+
+    fila.innerHTML = `
+        <td><input type="text" class="material"></td>
+        <td><input type="number" class="cajas" min="0"></td>
+        <td class="pilas">-</td>
+        <td class="pallets">-</td>
+        <td class="sobrantes">-</td>
+    `;
+}
+
+function calcular() {
+    let filas = document.querySelectorAll("#tabla tbody tr");
+    let totalPallets = 0;
+    let sobrantesLista = [];
+
+    filas.forEach(fila => {
+        let material = fila.querySelector(".material").value.trim();
+        let cajas = parseInt(fila.querySelector(".cajas").value) || 0;
+
+        let pilas = Math.ceil(cajas / cajasPorPila);
+        let pallets = Math.floor(pilas / pilasPorPallet);
+        let sobrantes = pilas % pilasPorPallet;
+
+        fila.querySelector(".pilas").innerText = pilas;
+        fila.querySelector(".pallets").innerText = pallets;
+        fila.querySelector(".sobrantes").innerText = sobrantes;
+
+        totalPallets += pallets;
+
+        if (sobrantes > 0 && material !== "") {
+            sobrantesLista.push({ material: material, pilas: sobrantes });
+        }
+    });
+
+    organizarMixtos(sobrantesLista, totalPallets);
+}
+
+function organizarMixtos(lista, palletsCompletos) {
+    let resultado = [];
+    let palletNum = 1;
+    let totalMixtos = 0;
+
+    let sobrantes = JSON.parse(JSON.stringify(lista));
+
+    while (sobrantes.length > 0) {
+        let capacidad = pilasPorPallet;
+        let codigosUsados = 0;
+        let pallet = {};
+
+        for (let i = 0; i < sobrantes.length && capacidad > 0; i++) {
+            if (codigosUsados >= maxCodigosPorPallet) break;
+
+            let item = sobrantes[i];
+            if (item.pilas > 0) {
+                let tomar = Math.min(item.pilas, capacidad);
+
+                pallet[item.material] = (pallet[item.material] || 0) + tomar;
+
+                item.pilas -= tomar;
+                capacidad -= tomar;
+                codigosUsados++;
+            }
+        }
+
+        sobrantes = sobrantes.filter(i => i.pilas > 0);
+
+        resultado.push({ numero: palletNum++, contenido: pallet });
+        totalMixtos++;
+    }
+
+    mostrarMixtos(resultado);
+
+    document.getElementById("total").innerText =
+        "Pallets completos: " + palletsCompletos +
+        " | Pallets mixtos: " + totalMixtos +
+        " | Total general: " + (palletsCompletos + totalMixtos);
+}
+
+function mostrarMixtos(pallets) {
+    let div = document.getElementById("mixtos");
+    div.innerHTML = "";
+
+    if (pallets.length === 0) {
+        div.innerHTML = "No hay pallets mixtos.";
+        return;
+    }
+
+    pallets.forEach(p => {
+        let texto = `<b>Pallet Mixto ${p.numero}:</b> `;
+        let partes = [];
+
+        for (let mat in p.contenido) {
+            partes.push(mat + " (" + p.contenido[mat] + " pilas)");
+        }
+
+        texto += partes.join(", ");
+        div.innerHTML += texto + "<br>";
+    });
+}
+
+agregarFila();
+</script>
+
+</body>
+</html>
